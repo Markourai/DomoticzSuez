@@ -1,2 +1,2 @@
 # DomoticzVeolia
-Domoticz plugin to retrieve information on toutsurmoneau website (Veolia)
+Domoticz plugin to retrieve information on toutsurmoneau website (Suez)
