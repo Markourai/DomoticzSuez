@@ -32,12 +32,6 @@
                 <option label="False" value="Normal"  default="true" />
             </options>
         </param>
-        <param field="Mode4" label="Accept terms of use automatically" width="75px">
-            <options>
-                <option label="True" value="True"/>
-                <option label="False" value="False"  default="true" />
-            </options>
-        </param>
     </params>
 </plugin>
 """
@@ -216,30 +210,6 @@ class BasePlugin:
         # Send data
         self.httpConn.Send(sendData)
 
-    # accept terms of use
-    def acceptTerms(self):
-        req_part = 'lincspartdisplaycdc_WAR_lincspartcdcportlet'
-
-        payload = {
-            'fm': 'Accepter'
-        }
-        
-        headers = self.initHeaders()
-        headers["Host"] = API_BASE_URI + ":" + BASE_PORT
-        
-        #Copy cookies
-        self.setCookies(headers)
-        
-        sendData = {
-                    "Verb" : "POST",
-                    "URL"  : API_ACCEPT_TERMS,
-                    "Headers" : headers,
-                    "Data" : dictToQuotedString(payload)
-        }
-        
-        #DumpDictToLog(sendData)
-        self.httpConn.Send(sendData)
-        
     # ask data to toutsurmoneau website, based on a resource_id ("urlCdcHeure" or "urlCdcJour") and date (max 28 days at once)
     def getData(self, resource_id, start_date, end_date, ):
         req_part = 'lincspartdisplaycdc_WAR_lincspartcdcportlet'
@@ -542,15 +512,6 @@ class BasePlugin:
                 strData = ""
                 if Data and ("Data" in Data):
                     strData = Data["Data"].decode();
-                if "terms_of_use" in strData:
-                    if Parameters["Mode4"] == "True":
-                        Domoticz.Status("Auto-accepting new terms of use")
-                        self.acceptTerms()
-                        self.sConnectionStep = "dataconnecting"
-                    else:
-                        Domoticz.Error("You must accept terms of use on https://"  + LOGIN_BASE_URI)
-                        self.sConnectionStep = "idle"
-                        self.bHasAFail = True
                 else:
                     # Analyse data for hours
                     if not self.exploreDataHours(Data):
@@ -596,7 +557,6 @@ class BasePlugin:
         Domoticz.Log("Days to grab for hours view set to " + Parameters["Mode1"])
         Domoticz.Log("Days to grab for others view set to " + Parameters["Mode2"])
         Domoticz.Log("Debug set to " + Parameters["Mode3"])
-        Domoticz.Log("Accept terms of use automatically set to " + Parameters["Mode4"])
         # most init
         self.__init__()
         
