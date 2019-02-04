@@ -43,8 +43,10 @@
 """
 
 # https://www.domoticz.com/wiki/Developing_a_Python_plugin
-
-import Domoticz
+try:
+    import Domoticz
+except ImportError:
+    import fakeDomoticz as Domoticz
 from base64 import b64encode
 import json
 from urllib.parse import quote
