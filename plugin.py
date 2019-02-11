@@ -415,6 +415,7 @@ class BasePlugin:
                     self.bHasAFail = True
                     self.sConnectionStep = "idle"
                 else:
+                    Domoticz.Status("Got data for year: " + self.sYear + " and month: " + self.sMonth)
                     if self.iDaysLeft > 0:
                         self.nextConnection = datetime.now()
                         self.sConnectionStep = "logconnected"
