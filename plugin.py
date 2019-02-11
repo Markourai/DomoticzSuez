@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-<plugin key="suez" name="Suez" author="Markourai" version="0.0.1" externallink="https://github.com/Markourai/DomoticzSuez">
+<plugin key="suez" name="Suez" author="Markourai" version="1.0" externallink="https://github.com/Markourai/DomoticzSuez">
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
         <param field="Password" label="Password" width="200px" required="true" default="" password="true"/>
@@ -41,7 +41,6 @@ from base64 import b64encode
 import json
 from urllib.parse import quote
 import re
-#from dateutil.relativedelta import relativedelta
 from datetime import datetime
 from datetime import timedelta
 import time
@@ -119,10 +118,9 @@ class BasePlugin:
     # Grab cookies found in Data["Headers"] and saves them for later user
     def getCookies(self, Data):
         if Data and ("Headers" in Data) and ("Set-Cookie" in Data["Headers"]):
-            # lCookies = re.findall("^(.*?)=(.*?)[;$]", Data["Headers"]["Set-Cookie"], re.MULTILINE)
             for match in re.finditer("^(.*?)=(.*?)[;$]", Data["Headers"]["Set-Cookie"], re.MULTILINE):
                 self.dCookies[match.group(1)] = match.group(2)
-                Domoticz.Status(match.group(1) + " : " + match.group(2))
+                Domoticz.Debug(match.group(1) + " : " + match.group(2))
 
     # Write saved cookies in headers["Cookie"]
     def setCookies(self, headers):
@@ -138,15 +136,11 @@ class BasePlugin:
         strData = ""
         if Data and ("Data" in Data):
             strData = Data["Data"].decode();
-        #if "_csrf_token" in strData:
-        #    Domoticz.Debug("TOKENNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN")
-        #else:
-        #    Domoticz.Debug("NOOOOOOOOOOOOOOOOOOOOOOO")
-        regex=re.compile('"_csrf_token" value="(.*)"',re.I) #re.I permet d'ignorer la case (majuscule/minuscule)
-        match=regex.search(strData)
-        if match:
-            Domoticz.Status(match.group(1))
-            self.sToken = match.group(1)
+            regex=re.compile('"_csrf_token" value="(.*)"',re.I) #re.I permet d'ignorer la case (majuscule/minuscule)
+            match=regex.search(strData)
+            if match:
+                Domoticz.Debug(match.group(1))
+                self.sToken = match.group(1)
 
     # get default headers
     def initHeaders(self):
@@ -199,8 +193,6 @@ class BasePlugin:
 
     # ask data to toutsurmoneau website, based on a counter_id ("counter number") and date of current month (year and month)
     def getData(self, counter_id, year_date, month_date):
-        Domoticz.Log("Get Data function begin")
-        
         headers = self.initHeaders()
         headers["Host"] = API_BASE_URI + ":" + BASE_PORT
         
@@ -213,10 +205,8 @@ class BasePlugin:
                     "URL"  : API_ENDPOINT_DATA + "/" + year_date + "/" + month_date + "/" + counter_id,
                     "Headers" : headers
         }
-        
         #DumpDictToLog(sendData)
         self.httpConn.Send(sendData)
-        Domoticz.Log("Get Data function end")
 
     # Create Domoticz device
     def createDevice(self):
@@ -232,7 +222,6 @@ class BasePlugin:
     def createAndAddToDevice(self, usage, usageTotal, Date):
         if not self.createDevice():
             return False
-        # -1.0 for counter because Suez doesn't provide absolute counter value via toutsurmoneau website
         Devices[self.iIndexUnit].Update(nValue=0, sValue=str(usageTotal) + ";"+ str(usage) + ";" + str(Date), Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType,)
         return True
 
@@ -240,7 +229,6 @@ class BasePlugin:
     def updateDevice(self, usage, usageTotal):
         if not self.createDevice():
             return False
-        # -1.0 for counter because Suez doesn't provide absolute counter value via toutsurmoneau website
         Devices[self.iIndexUnit].Update(nValue=0, sValue=str(usageTotal) + ";"+ str(usage), Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType)
         return True
 
@@ -253,7 +241,7 @@ class BasePlugin:
 
     # Grab days data inside received JSON data for history
     def exploreDataDays(self, Data):
-        Domoticz.Log("Begin Data Days")
+        Domoticz.Debug("Begin Data Days")
         curDay = None
         curIndexDay = None
         curTotalIndexDay = None
@@ -263,7 +251,6 @@ class BasePlugin:
             try:
                 dJson = json.loads(Data["Data"].decode())
                 dJson.reverse()
-                #Domoticz.Log(json.dumps(dJson, indent=4))
             except ValueError as err:
                 self.showStepError(True, "Data received are not JSON: " + str(err))
                 return False
@@ -290,17 +277,18 @@ class BasePlugin:
                             curIndexDay = float(value) * 1000.0
                         if i == 2:
                             curTotalIndexDay = float(value) * 1000.0
+                    # Update only if there is a value
                     if (curIndexDay > 0.0):
-                        Domoticz.Log("Value " + str(curIndexDay) + " with total of " + str(curTotalIndexDay) + " for " + datetimeToSQLDateString(curDay))
+                        #Domoticz.Log("Value " + str(curIndexDay) + " with total of " + str(curTotalIndexDay) + " for " + datetimeToSQLDateString(curDay))
                         if not self.createAndAddToDevice(curIndexDay, curTotalIndexDay, datetimeToSQLDateString(curDay)):
                             return False
-                        # If we are on the most recent batch and end date, use the mose recent data for Domoticz dashboard
-                        if self.bFirstMonths: # and (curDate == endDate):
-                            #Domoticz.Log("Update " + str(curIndexDay) + " " + datetimeToSQLDateString(curDay))
+                        # If we are on the most recent batch and end date, use the most recent data for Domoticz dashboard
+                        if self.bFirstMonths:
                             self.bFirstMonths = False
                             if not self.updateDevice(curIndexDay, curTotalIndexDay):
                                 return False
-                    self.iDaysLeft = self.iDaysLeft - 1
+                        else:
+                            self.iDaysLeft = self.iDaysLeft - 1
                 return True
             #else:
                 #self.showStepError(True, "Error in received JSON data")
@@ -310,15 +298,29 @@ class BasePlugin:
 
     # Calculate year and month for data pulling
     def calculateMonthData(self):
-        #if (self.dateCurrentData is None):
+        Domoticz.Debug("Number of days left: "+ str(self.iDaysLeft))
         self.dateCurrentData = (datetime.now() - timedelta(days=self.iDaysLeft))
-        Domoticz.Log(str(self.dateCurrentData))
-        # ffff
-        self.sYear = str(self.dateCurrentData.year)
-        self.sMonth = str(self.dateCurrentData.month)
+        Domoticz.Debug(str(self.dateCurrentData))
+        bNewData = False
+        # Set year and month for data request
+        if (self.sYear is None) or (self.sYear != str(self.dateCurrentData.year)):
+            self.sYear = str(self.dateCurrentData.year)
+            bNewData = True
+
+        if (self.sMonth is None) or (self.sMonth != str(self.dateCurrentData.month)):
+            self.sMonth = str(self.dateCurrentData.month)
+            bNewData = True
 
         if (self.sMonth == self.sEndMonth) and (self.sYear == self.sEndYear):
             self.bFirstMonths = True
+
+        if bNewData:
+            return
+
+        if (self.sYear == str(self.dateCurrentData.year)) and (self.sMonth == str(self.dateCurrentData.month)):
+            Domoticz.Debug("Same year: " + self.sYear + " and month: " + self.sMonth)
+            self.iDaysLeft = self.iDaysLeft - 10
+
 
     # Calculate next complete grab, for tomorrow between 5 and 6 am if tomorrow is true, for next hour otherwise
     def setNextConnection(self, tomorrow):
@@ -336,16 +338,14 @@ class BasePlugin:
     def handleConnection(self, Data = None):
         # First and last step
         Domoticz.Debug(self.sConnectionStep)
-        #Domoticz.Log(self.sConnectionStep)
         if self.sConnectionStep == "idle":
-            Domoticz.Log("Starting connection...")
+            Domoticz.Debug("Starting connection...")
             # Reset failed state
             self.bHasAFail = False
             if self.httpConn and self.httpConn.Connected():
                 self.httpConn.Disconnect()
 
             self.httpConn = Domoticz.Connection(Name="HTTPS connection", Transport="TCP/IP", Protocol="HTTPS", Address=LOGIN_BASE_URI, Port=BASE_PORT)
-            Domoticz.Debug("Connect")
             self.sConnectionStep = "connecting"
             self.httpConn.Connect()
 
@@ -356,9 +356,8 @@ class BasePlugin:
                 self.sConnectionStep = "idle"
                 self.bHasAFail = True
             else:
-                Domoticz.Log("Getting token...")
+                Domoticz.Debug("Getting token...")
                 self.sConnectionStep = "tokenconnected"
-                Domoticz.Debug("Go to token function")
                 self.getToken()
 
         # Connected, we need to log in
@@ -396,7 +395,7 @@ class BasePlugin:
                 self.sConnectionStep = "idle"
                 self.bHasAFail = True
             else:
-                Domoticz.Log("Getting data...")
+                Domoticz.Log("Getting data for year: " + self.sYear + " and month: " + self.sMonth)
                 self.getCookies(Data)
                 self.sConnectionStep = "getdatadays"
                 # Get data for specific year and month
@@ -409,39 +408,20 @@ class BasePlugin:
                 self.sConnectionStep = "idle"
                 self.bHasAFail = True
             else:
-                Domoticz.Log("Parsing data...")
-                #self.getCookies(Data)
+                Domoticz.Log("Parsing data for year: " + self.sYear + " and month: " + self.sMonth)
+                self.getCookies(Data)
                 DumpDictToLog(Data)
-                #self.sConnectionStep = "parsedatadays"
                 if not self.exploreDataDays(Data):
                     self.bHasAFail = True
+                    self.sConnectionStep = "idle"
                 else:
-                    #self.iMonthsLeft = self.iMonthsLeft - 1
-                    self.calculateMonthData()
-                    self.sConnectionStep = "dataconnecting"
-
-        # We have parsed everything
-        elif self.sConnectionStep == "getdatadays":
-            self.sConnectionStep = "idle"
-            Domoticz.Log("Done")
-
-        # Ask data for days
-#        elif self.sConnectionStep == "getdatadays":
-#            if not self.httpConn.Connected():
-#                self.showStepError(False, "Get data failed for days view")
-#                self.sConnectionStep = "idle"
-#                self.bHasAFail = True
-#            else:
-#                # Analyse data for days
-#                if not self.exploreDataDays(Data):
-#                    self.bHasAFail = True
-#                if self.iDaysLeft > 0:
-#                    #self.calculateDaysLeft()
-#                    self.sConnectionStep = "getdatadays"
-#                    self.getData(self.sCounter, self.sYear, self.sMonth)
-#                else:
-#                    self.sConnectionStep = "idle"
-#                    Domoticz.Log("Done")
+                    if self.iDaysLeft > 0:
+                        self.nextConnection = datetime.now()
+                        self.sConnectionStep = "logconnected"
+                    # We have parsed everything
+                    else:
+                        self.sConnectionStep = "idle"
+                        Domoticz.Log("Done")
 
         # Next connection time depends on success
         if self.sConnectionStep == "idle":
@@ -452,15 +432,13 @@ class BasePlugin:
     def onStart(self):
         Domoticz.Heartbeat(20)
         Domoticz.Debug("onStart called")
-        Domoticz.Log("This plugin is compatible with Domoticz version 3.9517 onwards, but short log view may fail on version 4.9700 / Suez")
         Domoticz.Log("Username set to " + Parameters["Username"])
         Domoticz.Log("Counter ID set to " + Parameters["Mode6"])
         if Parameters["Password"]:
             Domoticz.Log("Password is set")
         else:
             Domoticz.Log("Password is not set")
-        Domoticz.Log("Days to grab for hours view set to " + Parameters["Mode1"])
-        Domoticz.Log("Days to grab for others view set to " + Parameters["Mode2"])
+        Domoticz.Log("Days to grab for daily view set to " + Parameters["Mode1"])
         Domoticz.Log("Debug set to " + Parameters["Mode3"])
         # most init
         self.__init__()
@@ -480,7 +458,6 @@ class BasePlugin:
             self.iHistoryDaysForDaysView = 30
         elif self.iHistoryDaysForDaysView > 1000:
             self.iHistoryDaysForDaysView = 1000
-        Domoticz.Log("If you don't see enough data in days view of the device log, expand Short Log Sensors value the in Setup/Settings/Log History")
             
         # enable debug if required
         if Parameters["Mode3"] == "Debug":
@@ -494,9 +471,6 @@ class BasePlugin:
         self.sEndYear = str(datetime.now().year)
         self.sEndMonth = str(datetime.now().month)
         self.iDaysLeft = self.iHistoryDaysForDaysView
-        Domoticz.Log(str(self.iDaysLeft))
-        #self.dateCurrentData = datetime.now() - timedelta(days = self.iDaysLeft)
-        #Domoticz.Log(str(self.dateCurrentData))
 
         # Now we can enabling the plugin
         self.isStarted = True
