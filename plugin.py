@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-<plugin key="suez" name="Suez" author="Markourai" version="1.0" externallink="https://github.com/Markourai/DomoticzSuez">
+<plugin key="suez" name="Suez" author="Markourai" version="1.0.1" externallink="https://github.com/Markourai/DomoticzSuez">
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
         <param field="Password" label="Password" width="200px" required="true" default="" password="true"/>
@@ -319,14 +319,18 @@ class BasePlugin:
 
         if (self.sYear == str(self.dateCurrentData.year)) and (self.sMonth == str(self.dateCurrentData.month)):
             Domoticz.Debug("Same year: " + self.sYear + " and month: " + self.sMonth)
-            self.iDaysLeft = self.iDaysLeft - 10
+            if self.iDaysLeft > 0:
+                self.iDaysLeft = self.iDaysLeft - 1
+                self.calculateMonthData()
 
 
-    # Calculate next complete grab, for tomorrow between 5 and 6 am if tomorrow is true, for next hour otherwise
+    # Calculate next complete grab, for tomorrow between 6 and 7 am if tomorrow is true, for next hour otherwise
     def setNextConnection(self, tomorrow):
         if tomorrow:
             self.nextConnection = datetime.now() + timedelta(days=1)
-            self.nextConnection = self.nextConnection.replace(hour=5)
+            self.nextConnection = self.nextConnection.replace(hour=6)
+            if self.iDaysLeft == 0:
+                self.iDaysLeft = 1
         else:
             self.nextConnection = datetime.now() + timedelta(hours = 1)
         # Randomize minutes to lower load on toutsurmoneau website
