@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-<plugin key="suez" name="Suez" author="Markourai" version="1.0.2" externallink="https://github.com/Markourai/DomoticzSuez">
+<plugin key="suez" name="Suez" author="Markourai" version="1.0.3" externallink="https://github.com/Markourai/DomoticzSuez">
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
         <param field="Password" label="Password" width="200px" required="true" default="" password="true"/>
@@ -104,7 +104,7 @@ class BasePlugin:
     iDaysLeft = None
     # boolean: is this the batch of the most recent history
     bFirstMonths = None
-    
+
     def __init__(self):
         self.isStarted = False
         self.httpConn = None
@@ -124,7 +124,7 @@ class BasePlugin:
 
     # Write saved cookies in headers["Cookie"]
     def setCookies(self, headers):
-        headers["Cookie"] = ""        
+        headers["Cookie"] = ""
         for sKey, sValue in self.dCookies.items():
             # Concatenate cookies
             if headers["Cookie"]:
@@ -148,10 +148,10 @@ class BasePlugin:
 
     # get website token (Suez toutsurmoneau) through http connection
     def getToken(self):
-        
+
         headers = self.initHeaders()
         headers["Host"] = LOGIN_BASE_URI + ":" + BASE_PORT
-        
+
         sendData = {
                     "Verb" : "GET",
                     "URL"  : API_ENDPOINT_LOGIN,
@@ -173,18 +173,18 @@ class BasePlugin:
             'tsme_user_login[_username]': username,
             'tsme_user_login[_password]': password
         }
-        
+
         headers = self.initHeaders()
         headers["Host"] = LOGIN_BASE_URI + ":" + BASE_PORT
         self.setCookies(headers)
-        
+
         sendData = {
                     "Verb" : "POST",
                     "URL"  : API_ENDPOINT_LOGIN,
                     "Headers" : headers,
                     "Data" : dictToQuotedString(payload)
         }
-        
+
         DumpDictToLog(sendData)
         # Reset cookies to get authentication cookie later
         self.resetCookies()
@@ -195,11 +195,11 @@ class BasePlugin:
     def getData(self, counter_id, year_date, month_date):
         headers = self.initHeaders()
         headers["Host"] = API_BASE_URI + ":" + BASE_PORT
-        
+
         #Copy cookies
         self.setCookies(headers)
         DumpDictToLog(headers)
-        
+
         sendData = {
                     "Verb" : "GET",
                     "URL"  : API_ENDPOINT_DATA + "/" + year_date + "/" + month_date + "/" + counter_id,
@@ -246,7 +246,7 @@ class BasePlugin:
         curIndexDay = None
         curTotalIndexDay = None
         DumpDictToLog(Data)
-        
+
         if Data and "Data" in Data:
             try:
                 dJson = json.loads(Data["Data"].decode())
@@ -299,7 +299,8 @@ class BasePlugin:
     # Calculate year and month for data pulling
     def calculateMonthData(self):
         Domoticz.Debug("Number of days left: "+ str(self.iDaysLeft))
-        self.dateCurrentData = (datetime.now() - timedelta(days=self.iDaysLeft))
+        # Remove one day to get correct data and avoid month change issue
+        self.dateCurrentData = (datetime.now() - timedelta(days=self.iDaysLeft) - timedelta(days=1))
         Domoticz.Debug(str(self.dateCurrentData))
         bNewData = False
         # Set year and month for data request
@@ -376,7 +377,7 @@ class BasePlugin:
                 self.getCookies(Data)
                 self.sConnectionStep = "logconnected"
                 self.login(Parameters["Username"], Parameters["Password"])
-                
+
         # Connected, check that the authentication cookie has been received
         elif self.sConnectionStep == "logconnected":
             DumpDictToLog(Data)
@@ -421,6 +422,7 @@ class BasePlugin:
                 else:
                     Domoticz.Status("Got data for year: " + self.sYear + " and month: " + self.sMonth)
                     if self.iDaysLeft > 0:
+                        self.bFirstMonths = False
                         self.nextConnection = datetime.now()
                         self.sConnectionStep = "logconnected"
                     # We have parsed everything
@@ -431,7 +433,7 @@ class BasePlugin:
         # Next connection time depends on success
         if self.sConnectionStep == "idle":
             if self.bHasAFail:
-                self.setNextConnection(False)            
+                self.setNextConnection(False)
             Domoticz.Log("Next connection: " + datetimeToSQLDateTimeString(self.nextConnection))
 
     def onStart(self):
@@ -447,7 +449,7 @@ class BasePlugin:
         Domoticz.Log("Debug set to " + Parameters["Mode3"])
         # most init
         self.__init__()
-        
+
         try:
             self.sCounter = Parameters["Mode6"]
         except:
@@ -463,16 +465,16 @@ class BasePlugin:
             self.iHistoryDaysForDaysView = 30
         elif self.iHistoryDaysForDaysView > 1000:
             self.iHistoryDaysForDaysView = 1000
-            
+
         # enable debug if required
         if Parameters["Mode3"] == "Debug":
-            Domoticz.Debugging(1)            
+            Domoticz.Debugging(1)
 
         if self.createDevice():
             self.nextConnection = datetime.now()
         else:
-            self.setNextConnection(False)            
-        
+            self.setNextConnection(False)
+
         self.sEndYear = str(datetime.now().year)
         self.sEndMonth = str(datetime.now().month)
         self.iDaysLeft = self.iHistoryDaysForDaysView
@@ -492,14 +494,14 @@ class BasePlugin:
 
     def onMessage(self, Connection, Data):
         Domoticz.Debug("onMessage called")
-        
+
         # if started and not stopping
         if self.isStarted and (Connection == self.httpConn):
             self.handleConnection(Data)
 
     def onDisconnect(self, Connection):
         Domoticz.Debug("onDisconnect called")
-        
+
     def onHeartbeat(self):
         Domoticz.Debug("onHeartbeat() called")
         if datetime.now() > self.nextConnection:
