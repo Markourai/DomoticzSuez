@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-<plugin key="suez" name="Suez" author="Markourai" version="1.0.3" externallink="https://github.com/Markourai/DomoticzSuez">
+<plugin key="suez" name="Suez" author="Markourai" version="1.0.4" externallink="https://github.com/Markourai/DomoticzSuez">
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
         <param field="Password" label="Password" width="200px" required="true" default="" password="true"/>
@@ -25,8 +25,10 @@
         <param field="Mode1" label="Number of days to grab for daily view (30 min, 1000 max)" width="50px" required="false" default="365"/>
         <param field="Mode3" label="Debug" width="75px">
             <options>
-                <option label="True" value="Debug"/>
-                <option label="False" value="Normal"  default="true" />
+                <option label="False" value="0"  default="true" />
+                <option label="True" value="1"/>
+                <option label="Advanced" value="2"/>
+                
             </options>
         </param>
     </params>
@@ -62,6 +64,8 @@ HEADERS = {
 }
 
 class BasePlugin:
+    # int: debug mode
+    iDebugLevel = None
     # boolean: to check that we are started, to prevent error messages when disabling or restarting the plugin
     isStarted = None
     # object: http connection
@@ -104,12 +108,21 @@ class BasePlugin:
     iDaysLeft = None
     # boolean: is this the batch of the most recent history
     bFirstMonths = None
+    # string: username for Suez website
+    sUser = None
+    # string: password for Suez website
+    sPassword = None
+    # string: consumption to show = current week ("week"), the previous week ("lweek", the current month ("month"), the previous month ("lmonth"), or year ("year")
 
     def __init__(self):
         self.isStarted = False
         self.httpConn = None
         self.sConnectionStep = "idle"
         self.bHasAFail = False
+
+    def myDebug(self, message):
+        if self.iDebugLevel:
+            Domoticz.Log(message)
 
     # Reset saved cookies
     def resetCookies(self):
@@ -120,7 +133,7 @@ class BasePlugin:
         if Data and ("Headers" in Data) and ("Set-Cookie" in Data["Headers"]):
             for match in re.finditer("^(.*?)=(.*?)[;$]", Data["Headers"]["Set-Cookie"], re.MULTILINE):
                 self.dCookies[match.group(1)] = match.group(2)
-                Domoticz.Debug(match.group(1) + " : " + match.group(2))
+                self.myDebug(match.group(1) + " : " + match.group(2))
 
     # Write saved cookies in headers["Cookie"]
     def setCookies(self, headers):
@@ -139,7 +152,7 @@ class BasePlugin:
             regex=re.compile('"_csrf_token" value="(.*)"',re.I) #re.I permet d'ignorer la case (majuscule/minuscule)
             match=regex.search(strData)
             if match:
-                Domoticz.Debug(match.group(1))
+                self.myDebug(match.group(1))
                 self.sToken = match.group(1)
 
     # get default headers
@@ -185,7 +198,7 @@ class BasePlugin:
                     "Data" : dictToQuotedString(payload)
         }
 
-        DumpDictToLog(sendData)
+        self.dumpDictToLog(sendData)
         # Reset cookies to get authentication cookie later
         self.resetCookies()
         # Send data
@@ -198,14 +211,14 @@ class BasePlugin:
 
         #Copy cookies
         self.setCookies(headers)
-        DumpDictToLog(headers)
+        self.dumpDictToLog(headers)
 
         sendData = {
                     "Verb" : "GET",
                     "URL"  : API_ENDPOINT_DATA + "/" + year_date + "/" + month_date + "/" + counter_id,
                     "Headers" : headers
         }
-        #DumpDictToLog(sendData)
+        #self.dumpDictToLog(sendData)
         self.httpConn.Send(sendData)
 
     # Create Domoticz device
@@ -222,14 +235,20 @@ class BasePlugin:
     def createAndAddToDevice(self, usage, usageTotal, Date):
         if not self.createDevice():
             return False
-        Devices[self.iIndexUnit].Update(nValue=0, sValue=str(usageTotal) + ";"+ str(usage) + ";" + str(Date), Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType,)
+
+        sNewValue=str(usageTotal) + ";" + str(usage) + ";" + str(Date)
+        self.myDebug("Insert this value into the DB: " + sNewValue)
+        Devices[self.iIndexUnit].Update(nValue=0, sValue=sNewValue, Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType,)
         return True
 
     # Update value shown on Domoticz dashboard
     def updateDevice(self, usage, usageTotal):
         if not self.createDevice():
             return False
-        Devices[self.iIndexUnit].Update(nValue=0, sValue=str(usageTotal) + ";"+ str(usage), Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType)
+
+        sUpdateValue=str(usageTotal) + ";"+ str(usage)
+        self.myDebug("Update dashboard with this value: " + sUpdateValue)
+        Devices[self.iIndexUnit].Update(nValue=0, sValue=sUpdateValue, Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType)
         return True
 
     # Show error in state machine context
@@ -241,11 +260,11 @@ class BasePlugin:
 
     # Grab days data inside received JSON data for history
     def exploreDataDays(self, Data):
-        Domoticz.Debug("Begin Data Days")
+        self.myDebug("Begin Data Days")
         curDay = None
         curIndexDay = None
         curTotalIndexDay = None
-        DumpDictToLog(Data)
+        self.dumpDictToLog(Data)
 
         if Data and "Data" in Data:
             try:
@@ -298,10 +317,10 @@ class BasePlugin:
 
     # Calculate year and month for data pulling
     def calculateMonthData(self):
-        Domoticz.Debug("Number of days left: "+ str(self.iDaysLeft))
+        self.myDebug("Number of days left: "+ str(self.iDaysLeft))
         # Remove one day to get correct data and avoid month change issue
         self.dateCurrentData = (datetime.now() - timedelta(days=self.iDaysLeft) - timedelta(days=1))
-        Domoticz.Debug(str(self.dateCurrentData))
+        self.myDebug(str(self.dateCurrentData))
         bNewData = False
         # Set year and month for data request
         if (self.sYear is None) or (self.sYear != str(self.dateCurrentData.year)):
@@ -319,7 +338,7 @@ class BasePlugin:
             return
 
         if (self.sYear == str(self.dateCurrentData.year)) and (self.sMonth == str(self.dateCurrentData.month)):
-            Domoticz.Debug("Same year: " + self.sYear + " and month: " + self.sMonth)
+            self.myDebug("Same year: " + self.sYear + " and month: " + self.sMonth)
             if self.iDaysLeft > 0:
                 self.iDaysLeft = self.iDaysLeft - 1
                 self.calculateMonthData()
@@ -342,9 +361,9 @@ class BasePlugin:
     # Handle the connection state machine
     def handleConnection(self, Data = None):
         # First and last step
-        Domoticz.Debug(self.sConnectionStep)
+        self.myDebug(self.sConnectionStep)
         if self.sConnectionStep == "idle":
-            Domoticz.Debug("Starting connection...")
+            self.myDebug("Starting connection...")
             # Reset failed state
             self.bHasAFail = False
             if self.httpConn and self.httpConn.Connected():
@@ -361,7 +380,7 @@ class BasePlugin:
                 self.sConnectionStep = "idle"
                 self.bHasAFail = True
             else:
-                Domoticz.Debug("Getting token...")
+                self.myDebug("Getting token...")
                 self.sConnectionStep = "tokenconnected"
                 self.getToken()
 
@@ -376,11 +395,11 @@ class BasePlugin:
                 self.setToken(Data)
                 self.getCookies(Data)
                 self.sConnectionStep = "logconnected"
-                self.login(Parameters["Username"], Parameters["Password"])
+                self.login(self.sUser, self.sPassword)
 
         # Connected, check that the authentication cookie has been received
         elif self.sConnectionStep == "logconnected":
-            DumpDictToLog(Data)
+            self.dumpDictToLog(Data)
             # Grab cookies from received data, if we have "eZSESSID", we're good
             self.getCookies(Data)
             if ("eZSESSID" in self.dCookies) and self.dCookies["eZSESSID"]:
@@ -415,12 +434,12 @@ class BasePlugin:
             else:
                 Domoticz.Log("Parsing data for year: " + self.sYear + " and month: " + self.sMonth)
                 self.getCookies(Data)
-                DumpDictToLog(Data)
+                self.dumpDictToLog(Data)
                 if not self.exploreDataDays(Data):
                     self.bHasAFail = True
                     self.sConnectionStep = "idle"
                 else:
-                    Domoticz.Status("Got data for year: " + self.sYear + " and month: " + self.sMonth)
+                    Domoticz.Log("Got data for year: " + self.sYear + " and month: " + self.sMonth)
                     if self.iDaysLeft > 0:
                         self.bFirstMonths = False
                         self.nextConnection = datetime.now()
@@ -438,24 +457,15 @@ class BasePlugin:
 
     def onStart(self):
         Domoticz.Heartbeat(20)
-        Domoticz.Debug("onStart called")
-        Domoticz.Log("Username set to " + Parameters["Username"])
-        Domoticz.Log("Counter ID set to " + Parameters["Mode6"])
-        if Parameters["Password"]:
-            Domoticz.Log("Password is set")
-        else:
-            Domoticz.Log("Password is not set")
-        Domoticz.Log("Days to grab for daily view set to " + Parameters["Mode1"])
-        Domoticz.Log("Debug set to " + Parameters["Mode3"])
-        # most init
-        self.__init__()
-
+        self.myDebug("onStart called")
+        
+        self.sUser = Parameters["Username"]
+        self.sPassword = Parameters["Password"]
         try:
             self.sCounter = Parameters["Mode6"]
         except:
             self.sConnectionStep = "idle"
             self.bHasAFail = True
-
         # History for short log is 1000 days max (default to 365)
         try:
             self.iHistoryDaysForDaysView = int(Parameters["Mode1"])
@@ -467,8 +477,25 @@ class BasePlugin:
             self.iHistoryDaysForDaysView = 1000
 
         # enable debug if required
-        if Parameters["Mode3"] == "Debug":
+        try:
+            self.iDebugLevel = int(Parameters["Mode3"])
+        except ValueError:
+            self.iDebugLevel = 0
+
+        if self.iDebugLevel > 1:
             Domoticz.Debugging(1)
+
+        Domoticz.Log("Username set to " + self.sUser)
+        Domoticz.Log("Counter ID set to " + self.sCounter)
+        if Parameters["Password"]:
+            Domoticz.Log("Password is set")
+        else:
+            Domoticz.Log("Password is not set")
+        Domoticz.Log("Days to grab for daily view set to " + str(self.iHistoryDaysForDaysView))
+        Domoticz.Log("Debug set to " + str(self.iDebugLevel))
+
+        # most init
+        self.__init__()
 
         if self.createDevice():
             self.nextConnection = datetime.now()
@@ -509,6 +536,24 @@ class BasePlugin:
             self.setNextConnection(True)
             self.calculateMonthData()
             self.handleConnection()
+
+    def dumpDictToLog(self, dictToLog):
+        if self.iDebugLevel > 1:
+            if isinstance(dictToLog, dict):
+                self.myDebug("Dict details ("+str(len(dictToLog))+"):")
+                for x in dictToLog:
+                    if isinstance(dictToLog[x], dict):
+                        self.myDebug("--->'"+x+" ("+str(len(dictToLog[x]))+"):")
+                        for y in dictToLog[x]:
+                            if isinstance(dictToLog[x][y], dict):
+                                for z in dictToLog[x][y]:
+                                    self.myDebug("----------->'" + z + "':'" + str(dictToLog[x][y][z]) + "'")
+                            else:
+                                self.myDebug("------->'" + y + "':'" + str(dictToLog[x][y]) + "'")
+                    else:
+                        self.myDebug("--->'" + x + "':'" + str(dictToLog[x]) + "'")
+            else:
+                self.myDebug("Received no dict: " + str(dictToLog))
 
 global _plugin
 _plugin = BasePlugin()
@@ -569,24 +614,20 @@ def dictToQuotedString(dParams):
 def DumpConfigToLog():
     for x in Parameters:
         if Parameters[x] != "":
-            Domoticz.Debug( "'" + x + "':'" + str(Parameters[x]) + "'")
-    Domoticz.Debug("Device count: " + str(len(Devices)))
+            self.myDebug( "'" + x + "':'" + str(Parameters[x]) + "'")
+    self.myDebug("Device count: " + str(len(Devices)))
     for x in Devices:
-        Domoticz.Debug("Device:           " + str(x) + " - " + str(Devices[x]))
-        Domoticz.Debug("Device ID:       '" + str(Devices[x].ID) + "'")
-        Domoticz.Debug("Device Name:     '" + Devices[x].Name + "'")
-        Domoticz.Debug("Device iValue:    " + str(Devices[x].iValue))
-        Domoticz.Debug("Device sValue:   '" + Devices[x].sValue + "'")
-        Domoticz.Debug("Device LastLevel: " + str(Devices[x].LastLevel))
+        self.myDebug("Device:           " + str(x) + " - " + str(Devices[x]))
+        self.myDebug("Device ID:       '" + str(Devices[x].ID) + "'")
+        self.myDebug("Device Name:     '" + Devices[x].Name + "'")
+        self.myDebug("Device iValue:    " + str(Devices[x].iValue))
+        self.myDebug("Device sValue:   '" + Devices[x].sValue + "'")
+        self.myDebug("Device LastLevel: " + str(Devices[x].LastLevel))
     return
 
 # Convert Suez date string to datetime object
 def suezDateToDatetime(datetimeStr):
     return datetime(*(time.strptime(datetimeStr, "%d/%m/%Y")[0:6]))
-
-# Convert datetime object to Enedis date string
-def datetimeToEnderdisDateString(datetimeObj):
-    return datetimeObj.strftime("%d/%m/%Y")
 
 # Convert datetime object to Domoticz date string
 def datetimeToSQLDateString(datetimeObj):
@@ -595,19 +636,3 @@ def datetimeToSQLDateString(datetimeObj):
 # Convert datetime object to Domoticz date and time string
 def datetimeToSQLDateTimeString(datetimeObj):
     return datetimeObj.strftime("%Y-%m-%d %H:%M:%S")
-
-def DumpDictToLog(dictToLog):
-    if Parameters["Mode3"] == "Debug":
-        if isinstance(dictToLog, dict):
-            Domoticz.Debug("Dict details ("+str(len(dictToLog))+"):")
-            for x in dictToLog:
-                if isinstance(dictToLog[x], dict):
-                    Domoticz.Debug("--->'"+x+" ("+str(len(dictToLog[x]))+"):")
-                    for y in dictToLog[x]:
-                        if isinstance(dictToLog[x][y], dict):
-                            for z in dictToLog[x][y]:
-                                Domoticz.Debug("----------->'" + z + "':'" + str(dictToLog[x][y][z]) + "'")
-                        else:
-                            Domoticz.Debug("------->'" + y + "':'" + str(dictToLog[x][y]) + "'")
-                else:
-                    Domoticz.Debug("--->'" + x + "':'" + str(dictToLog[x]) + "'")
