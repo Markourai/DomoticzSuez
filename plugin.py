@@ -119,6 +119,7 @@ class BasePlugin:
         self.httpConn = None
         self.sConnectionStep = "idle"
         self.bHasAFail = False
+        self.iDaysLeft = False
 
     def myDebug(self, message):
         if self.iDebugLevel:
@@ -441,7 +442,7 @@ class BasePlugin:
                 else:
                     Domoticz.Log("Got data for year: " + self.sYear + " and month: " + self.sMonth)
                     if self.iDaysLeft > 0:
-                        self.bFirstMonths = False
+                        #self.bFirstMonths = False
                         self.nextConnection = datetime.now()
                         self.sConnectionStep = "logconnected"
                     # We have parsed everything
