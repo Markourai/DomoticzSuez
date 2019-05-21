@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 """
-<plugin key="suez" name="Suez" author="Markourai" version="1.0.4" externallink="https://github.com/Markourai/DomoticzSuez">
+<plugin key="suez" name="Suez" author="Markourai" version="1.0.5" externallink="https://github.com/Markourai/DomoticzSuez">
     <params>
         <param field="Username" label="Username" width="200px" required="true" default=""/>
         <param field="Password" label="Password" width="200px" required="true" default="" password="true"/>
@@ -308,7 +308,8 @@ class BasePlugin:
                             if not self.updateDevice(curIndexDay, curTotalIndexDay):
                                 return False
                         else:
-                            self.iDaysLeft = self.iDaysLeft - 1
+                            if self.iDaysLeft > 0:
+                                self.iDaysLeft = self.iDaysLeft - 1
                 return True
             #else:
                 #self.showStepError(True, "Error in received JSON data")
