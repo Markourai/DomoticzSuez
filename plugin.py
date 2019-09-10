@@ -47,6 +47,7 @@ from datetime import datetime
 from datetime import timedelta
 import time
 import html
+from pprint import pprint
 
 LOGIN_BASE_URI = 'www.toutsurmoneau.fr'
 API_BASE_URI = 'www.toutsurmoneau.fr'
@@ -132,9 +133,16 @@ class BasePlugin:
     # Grab cookies found in Data["Headers"] and saves them for later user
     def getCookies(self, Data):
         if Data and ("Headers" in Data) and ("Set-Cookie" in Data["Headers"]):
-            for match in re.finditer("^(.*?)=(.*?)[;$]", Data["Headers"]["Set-Cookie"], re.MULTILINE):
-                self.dCookies[match.group(1)] = match.group(2)
-                self.myDebug(match.group(1) + " : " + match.group(2))
+            # lCookies = re.findall("^(.*?)=(.*?)[;$]", Data["Headers"]["Set-Cookie"], re.MULTILINE)
+            cookiesLines = Data["Headers"]["Set-Cookie"]
+            self.dCookies[match.group(1)] = match.group(2)
+            # on old version of Domoticz, cookies is a multiline string
+            if isinstance(cookiesLines, str):
+                cookiesLines = cookiesLines.splitlines()
+            # for match in re.finditer("^(.*?)=(.*?)[;$]", Data["Headers"]["Set-Cookie"], re.MULTILINE):
+            for sCookiesLine in cookiesLines:
+                for match in re.finditer("^(.*?)=(.*?)[;$]", sCookiesLine):
+                    self.dCookies[match.group(1)] = match.group(2)
 
     # Write saved cookies in headers["Cookie"]
     def setCookies(self, headers):
