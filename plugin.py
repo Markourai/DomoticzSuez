@@ -135,7 +135,6 @@ class BasePlugin:
         if Data and ("Headers" in Data) and ("Set-Cookie" in Data["Headers"]):
             # lCookies = re.findall("^(.*?)=(.*?)[;$]", Data["Headers"]["Set-Cookie"], re.MULTILINE)
             cookiesLines = Data["Headers"]["Set-Cookie"]
-            self.dCookies[match.group(1)] = match.group(2)
             # on old version of Domoticz, cookies is a multiline string
             if isinstance(cookiesLines, str):
                 cookiesLines = cookiesLines.splitlines()
