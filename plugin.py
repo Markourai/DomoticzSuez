@@ -78,11 +78,11 @@ class BasePlugin:
     # string: description of the Suez device
     sDescription = "Compteur Suez"
     # integer: type (pTypeGeneral)
-    iType = 0xF3
+    iType = 0xFA
     # integer: subtype (sTypeManagedCounter)
-    iSubType = 0x21
+    iSubType = 0x01
     # integer: switch type (Water m3)
-    iSwitchType = 2
+    iSwitchType = 1
     # string: step name of the state machine
     sConnectionStep = None
     # boolean: true if a step failed
