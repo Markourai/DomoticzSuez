@@ -80,7 +80,7 @@ class BasePlugin:
     # integer: type (pTypeRFXMeter)
     iType = 0x71
     # integer: subtype (sTypeRFXMeterCount)
-    iSubType = 0x2
+    iSubType = 2
     # integer: switch type (Water m3)
     iSwitchType = 0
     # string: step name of the state machine
