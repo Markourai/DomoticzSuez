@@ -244,9 +244,9 @@ class BasePlugin:
         if not self.createDevice():
             return False
 
-        sNewValue=str(usageTotal) + ";" + str(usage) + ";" + str(Date)
+        sNewValue=str(usageTotal) + ";" + str(usage) + ";0;0;0;0;" + str(Date)
         self.myDebug("Insert this value into the DB: " + sNewValue)
-        Devices[self.iIndexUnit].Update(nValue=0, sValue=sNewValue, Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType,)
+        Devices[self.iIndexUnit].Update(nValue=0, sValue=sNewValue, Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType)
         return True
 
     # Update value shown on Domoticz dashboard
@@ -254,7 +254,7 @@ class BasePlugin:
         if not self.createDevice():
             return False
 
-        sUpdateValue=str(usageTotal) + ";"+ str(usage)
+        sUpdateValue=str(usageTotal) + ";"+ str(usage) + ";0;0;0;0"
         self.myDebug("Update dashboard with this value: " + sUpdateValue)
         Devices[self.iIndexUnit].Update(nValue=0, sValue=sUpdateValue, Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType)
         return True
