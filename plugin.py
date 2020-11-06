@@ -78,11 +78,11 @@ class BasePlugin:
     # string: description of the Suez device
     sDescription = "Compteur Suez"
     # integer: type (pTypeGeneral)
-    iType = 0xFA
+    iType = 0xF3
     # integer: subtype (sTypeManagedCounter)
-    iSubType = 0x01
+    iSubType = 0x21
     # integer: switch type (Water m3)
-    iSwitchType = 1
+    iSwitchType = 2
     # string: step name of the state machine
     sConnectionStep = None
     # boolean: true if a step failed
@@ -244,9 +244,9 @@ class BasePlugin:
         if not self.createDevice():
             return False
 
-        sNewValue=str(usageTotal) + ";" + str(usage) + ";0;0;0;0;" + str(Date)
+        sNewValue=str(usageTotal) + ";" + str(usage) + ";" + str(Date)
         self.myDebug("Insert this value into the DB: " + sNewValue)
-        Devices[self.iIndexUnit].Update(nValue=0, sValue=sNewValue, Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType)
+        Devices[self.iIndexUnit].Update(nValue=0, sValue=sNewValue, Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType,)
         return True
 
     # Update value shown on Domoticz dashboard
@@ -254,7 +254,7 @@ class BasePlugin:
         if not self.createDevice():
             return False
 
-        sUpdateValue=str(usageTotal) + ";"+ str(usage) + ";0;0;0;0"
+        sUpdateValue=str(usageTotal) + ";"+ str(usage)
         self.myDebug("Update dashboard with this value: " + sUpdateValue)
         Devices[self.iIndexUnit].Update(nValue=0, sValue=sUpdateValue, Type=self.iType, Subtype=self.iSubType, Switchtype=self.iSwitchType)
         return True
