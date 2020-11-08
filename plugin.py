@@ -77,12 +77,12 @@ class BasePlugin:
     sDeviceName = "Suez"
     # string: description of the Suez device
     sDescription = "Compteur Suez"
-    # integer: type (pTypeRFXMeter)
-    iType = 0x71
-    # integer: subtype (sTypeRFXMeterCount)
-    iSubType = 2
+    # integer: type (pTypeGeneral)
+    iType = 0xF3
+    # integer: subtype (sTypeManagedCounter)
+    iSubType = 0x21
     # integer: switch type (Water m3)
-    iSwitchType = 0
+    iSwitchType = 2
     # string: step name of the state machine
     sConnectionStep = None
     # boolean: true if a step failed
